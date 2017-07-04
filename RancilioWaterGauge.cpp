@@ -46,8 +46,9 @@ HX711 scale(DOUT, CLK);
 #define PIN            6
 
 // How many NeoPixels are attached to the Arduino?
-#define NUMPIXELS      8
-const float FULLTANK = 500;
+#define NUMPIXELS      16
+const float FULLTANK = 2000;
+const float TARE = 619;
 
 // When we setup the NeoPixel library, we tell it how many pixels, and which pin to use to send signals.
 // Note that for older NeoPixel strips you might need to change the third parameter--see the strandtest
@@ -62,38 +63,40 @@ int delayval = 500; // delay for half a second
 float calibration_factor = 454; //-7050 worked for my 440lb max scale setup
 
 void setup() {
-  Serial1.begin(9600);
-  Serial1.println("HX711 calibration sketch");
-  Serial1.println("Remove all weight from scale");
-  Serial1.println("After readings begin, place known weight on scale");
-  Serial1.println("Press + or a to increase calibration factor");
-  Serial1.println("Press - or z to decrease calibration factor");
+  Serial.begin(9600);
+  Serial.println("HX711 calibration sketch");
+  Serial.println("Remove all weight from scale");
+  Serial.println("After readings begin, place known weight on scale");
+  Serial.println("Press + or a to increase calibration factor");
+  Serial.println("Press - or z to decrease calibration factor");
 
   scale.set_scale();
-  scale.tare(); //Reset the scale to 0
+  //scale.tare(); //Reset the scale to 0
 
   pixels.begin(); // This initializes the NeoPixel library.
-
+  pixels.setBrightness(50);
 
   long zero_factor = scale.read_average(); //Get a baseline reading
-  Serial1.print("Zero factor: "); //This can be used to remove the need to tare the scale. Useful in permanent scale projects.
-  Serial1.println(zero_factor);
+  Serial.print("Zero factor: "); //This can be used to remove the need to tare the scale. Useful in permanent scale projects.
+  Serial.println(zero_factor);
 }
 
 void loop() {
 
   scale.set_scale(calibration_factor); //Adjust to this calibration factor
 
-  Serial1.print("Reading: ");
-  Serial1.print(scale.get_units(), 1);
-  Serial1.print(" g"); //Change this to kg and re-adjust the calibration factor if you follow SI units like a sane person
-  Serial1.print(" calibration_factor: ");
-  Serial1.print(calibration_factor);
-  Serial1.println();
+  float grams = scale.get_units() - TARE;
 
-  if(Serial1.available())
+  Serial.print("Reading: ");
+  Serial.print(grams, 1);
+  Serial.print(" g"); //Change this to kg and re-adjust the calibration factor if you follow SI units like a sane person
+  Serial.print(" calibration_factor: ");
+  Serial.print(calibration_factor);
+  Serial.println();
+
+  if(Serial.available())
   {
-    char temp = Serial1.read();
+    char temp = Serial.read();
     if(temp == '+' || temp == 'a')
       calibration_factor += 10;
     else if(temp == '-' || temp == 'z')
@@ -101,20 +104,19 @@ void loop() {
   }
 
   float gramPerPix = FULLTANK/(float)NUMPIXELS;
-
-  int pixToLight = scale.get_units()/gramPerPix;
+  int pixToLight = grams/gramPerPix;
 
   for(int i=0;i<NUMPIXELS;i++){
 
 	  // pixels.Color takes RGB values, from 0,0,0 up to 255,255,255
 	  if(i <= pixToLight) {
-		  if(pixToLight == 0)
+		  if(pixToLight <= 1)
 		  {
 			  pixels.setPixelColor(i, pixels.Color(150,0,0)); 	// Moderately bright red color.
 		  }
 		  else
 		  {
-			  if(pixToLight <= 2)
+			  if(pixToLight <= 4)
 			  {
 				  pixels.setPixelColor(i, pixels.Color(150,20,0)); 	// Moderately bright orange color.
 			  }
